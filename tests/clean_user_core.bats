@@ -259,6 +259,49 @@ EOF
     rm -rf "$test_home"
 }
 
+@test "clean_user_essentials keeps Google identity and Clearcut state (#1607)" {
+    # The generic cache sweep reaches these dotless names. Drive the real
+    # safe_clean_guarded path so should_protect_path at bin/clean.sh:1002
+    # decides the batch.
+    local test_home="$HOME/google-identity-home"
+    mkdir -p \
+        "$test_home/Library/Caches/GIPPseudonymousID" \
+        "$test_home/Library/Caches/CCTClearcutLogger" \
+        "$test_home/Library/Caches/ordinary-app"
+    printf 'id\n' > "$test_home/Library/Caches/GIPPseudonymousID/device-id"
+    printf 'log\n' > "$test_home/Library/Caches/CCTClearcutLogger/queue.dat"
+    printf 'junk\n' > "$test_home/Library/Caches/ordinary-app/junk"
+
+    run env HOME="$test_home" PROJECT_ROOT="$PROJECT_ROOT" \
+        MOLE_TEST_MODE=1 MOLE_TEST_NO_AUTH=1 \
+        /bin/bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/bin/clean.sh"
+DRY_RUN=false
+start_section_spinner() { :; }
+stop_section_spinner() { :; }
+clean_trash() { :; }
+_clean_recent_items() { :; }
+_clean_mail_downloads() { :; }
+clean_rc=0
+clean_user_essentials || clean_rc=$?
+gip="$HOME/Library/Caches/GIPPseudonymousID"
+clearcut="$HOME/Library/Caches/CCTClearcutLogger"
+ordinary="$HOME/Library/Caches/ordinary-app"
+printf 'CLEAN_RC=%s GIP=%s CCT=%s ORD=%s\n' \
+    "$clean_rc" \
+    "$(test -d "$gip" && echo kept || echo gone)" \
+    "$(test -d "$clearcut" && echo kept || echo gone)" \
+    "$(test -e "$ordinary" && echo kept || echo gone)"
+[[ -d "$gip" ]] || exit 1
+[[ -d "$clearcut" ]] || exit 1
+[[ ! -e "$ordinary" ]] || exit 1
+EOF
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    rm -rf "$test_home"
+}
+
 @test "clean_user_essentials preserves nested and physical Deno roots" {
     local nested_home="$HOME/deno-nested-home"
     local linked_home="$HOME/deno-linked-home"

@@ -547,6 +547,12 @@ should_protect_path() {
             */Library/Caches/com.apple.siriactionsd.ShortcutsSandboxCache | */Library/Caches/com.apple.siriactionsd.ShortcutsSandboxCache/*)
             return 0
             ;;
+        # Google ID store and Clearcut queue. Deleting them while Gemini runs
+        # starts an unbounded write loop (#1607).
+        */Library/Caches/GIPPseudonymousID | */Library/Caches/GIPPseudonymousID/* | \
+            */Library/Caches/CCTClearcutLogger | */Library/Caches/CCTClearcutLogger/*)
+            return 0
+            ;;
         # Wallpaper and aerial screen saver assets are user-selected content.
         # Their download-time mtime does not indicate whether they are active,
         # and deleting them forces a large re-download and selection reset.

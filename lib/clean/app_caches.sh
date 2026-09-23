@@ -890,7 +890,6 @@ clean_ai_apps() {
     # installs to ~/.lmstudio in 0.3.6, but existing data is not migrated, so
     # never recursively clean the legacy root. The Library/Caches target above
     # is the only path treated as an auto-rebuildable cache here.
-    safe_clean ~/Library/Caches/CCTClearcutLogger "Google Clearcut logs"
     if [[ -d "$HOME/Library/Application Support/Codex" || -d "$HOME/Library/Logs/com.openai.codex" ]]; then
         debug_log "Codex Desktop state left intact by default"
     fi
