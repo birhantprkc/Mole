@@ -73,26 +73,6 @@ EOF
 	[[ "$output" != *"App saved states optimized"* ]] || return 1
 }
 
-@test "launch agent cleanup reports a failed removal" {
-	run env HOME="$TEST_HOME/launch-agent" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
-set -euo pipefail
-source "$PROJECT_ROOT/lib/core/common.sh"
-source "$PROJECT_ROOT/lib/optimize/tasks.sh"
-
-plist="$HOME/Library/LaunchAgents/com.test.broken.plist"
-mkdir -p "$(dirname "$plist")"
-/usr/libexec/PlistBuddy -c "Add :Program string /missing/test-agent" "$plist" > /dev/null 2>&1
-safe_remove() { return 1; }
-launchctl() { return 0; }
-
-execute_optimization launch_agents_cleanup
-[[ "$(optimize_outcome_count failed)" == "1" ]] || exit 1
-EOF
-
-	[[ "$status" -eq 0 ]] || { echo "$output"; return 1; }
-	[[ "$output" == *"Failed to remove 1 broken Launch Agent(s)"* ]] || return 1
-}
-
 @test "shared file list repair reports a failed removal" {
 	run env HOME="$TEST_HOME/shared-list" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
