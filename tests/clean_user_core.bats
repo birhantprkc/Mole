@@ -2654,8 +2654,8 @@ EOF
 
 # Runs Large files against a docker stub that renders whatever
 # `system df --format` template production asks for, from rows of
-# Type|TotalCount|Active|Size|Reclaimable. Leaves the Docker line in
-# docker_row.
+# Type|TotalCount|Active|Size|Reclaimable. The caller reads the Docker line
+# out of `output` with `_docker_row`.
 _large_files_docker_row() {
     local review_home="$1"
     local rows="$2"
@@ -2690,8 +2690,10 @@ docker() {
 }
 check_large_file_candidates
 EOF
+}
 
-    docker_row=$(printf '%s\n' "$output" | grep 'Docker storage' || true)
+_docker_row() {
+    printf '%s\n' "$1" | grep 'Docker storage' || true
 }
 
 @test "large files Docker row drops an in-use images reclaimable (moby#51775)" {
@@ -2707,6 +2709,8 @@ Build Cache|0|0|0B|0B"
         echo "$output"
         return 1
     }
+    local docker_row
+    docker_row=$(_docker_row "$output")
     [[ "$docker_row" == *"Images 7.093GB (2/2 in use) · Containers 846.3MB (3.658MB (0%) reclaimable) · Local Volumes 65.76MB (0B (0%) reclaimable) · Build Cache 0B (0B reclaimable)"* ]] || {
         echo "$output"
         return 1
@@ -2728,6 +2732,8 @@ Containers|1|1|12MB|0B (0%)"
         echo "$output"
         return 1
     }
+    local docker_row
+    docker_row=$(_docker_row "$output")
     [[ "$docker_row" == *"Images 4.2GB (1/3 in use) · Containers 12MB (0B (0%) reclaimable)"* ]] || {
         echo "$output"
         return 1
@@ -2744,6 +2750,8 @@ Containers|1|1|12MB|0B (0%)"
         echo "$output"
         return 1
     }
+    local docker_row
+    docker_row=$(_docker_row "$output")
     [[ "$docker_row" == *"Images 2.8GB (3/3 in use)"* ]] || {
         echo "$output"
         return 1
@@ -2765,6 +2773,8 @@ Build Cache|12|0|1.2GB|1.2GB"
         echo "$output"
         return 1
     }
+    local docker_row
+    docker_row=$(_docker_row "$output")
     [[ "$docker_row" == *"Images 2.5GB (2.5GB (100%) reclaimable) · Containers 40MB (12MB (30%) reclaimable) · Local Volumes 300MB (100MB (33%) reclaimable) · Build Cache 1.2GB (1.2GB reclaimable)"* ]] || {
         echo "$output"
         return 1
