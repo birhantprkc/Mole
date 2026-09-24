@@ -247,38 +247,29 @@ clean_homebrew() {
         fi
     fi
     [[ "$should_skip" == "true" ]] && return 0
-    # Skip cleanup if cache is small; autoremove is previewed separately.
-    local skip_cleanup=false
-    local brew_cache_size=0
-    if [[ -d ~/Library/Caches/Homebrew ]]; then
-        brew_cache_size=$(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" du -skP ~/Library/Caches/Homebrew 2> /dev/null | awk '{print $1}')
-        local du_exit=$?
-        if [[ $du_exit -eq 0 && -n "$brew_cache_size" && "$brew_cache_size" -lt 51200 ]]; then
-            skip_cleanup=true
-        fi
-    fi
+    # No size gate on ~/Library/Caches/Homebrew: most of what `brew cleanup`
+    # frees is old formula versions in the Cellar, which that cache does not
+    # hold. A cache someone already emptied (Mole's Mac app clears downloads)
+    # kept this under the old 50MB gate forever while old versions piled up.
+    # The 7-day window above bounds how often this runs.
     local brew_tmp_file
     local brew_exit=0
-    if [[ "$skip_cleanup" == "false" ]]; then
-        brew_tmp_file=$(create_temp_file)
-        snapshot_homebrew_active_links || true
-        if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Homebrew cleanup..."; fi
-        HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_AUTOREMOVE=1 NONINTERACTIVE=1 \
-            run_with_timeout "$cleanup_timeout" brew cleanup --prune=30 > "$brew_tmp_file" 2>&1 || brew_exit=$?
-        if [[ -t 1 ]]; then stop_inline_spinner; fi
-        restore_homebrew_active_links
-    fi
+    brew_tmp_file=$(create_temp_file)
+    snapshot_homebrew_active_links || true
+    if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Homebrew cleanup..."; fi
+    HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_AUTOREMOVE=1 NONINTERACTIVE=1 \
+        run_with_timeout "$cleanup_timeout" brew cleanup --prune=30 > "$brew_tmp_file" 2>&1 || brew_exit=$?
+    if [[ -t 1 ]]; then stop_inline_spinner; fi
+    restore_homebrew_active_links
 
     local brew_success=false
-    if [[ "$skip_cleanup" == "false" && $brew_exit -eq 0 ]]; then
+    if [[ $brew_exit -eq 0 ]]; then
         brew_success=true
     fi
 
     # Process cleanup output and extract metrics
     # Summarize cleanup results.
-    if [[ "$skip_cleanup" == "true" ]]; then
-        debug_log "Homebrew cleanup skipped: cache below threshold (${brew_cache_size}KB)"
-    elif [[ "$brew_success" == "true" && -f "$brew_tmp_file" ]]; then
+    if [[ "$brew_success" == "true" && -f "$brew_tmp_file" ]]; then
         local brew_output
         brew_output=$(cat "$brew_tmp_file" 2> /dev/null || echo "")
         local removed_count freed_space
@@ -313,10 +304,8 @@ clean_homebrew() {
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Homebrew autoremove · skipped (run ${GRAY}brew autoremove${NC} manually)"
         note_activity
     fi
-    # Update cache timestamp on successful completion or when cleanup was intelligently skipped
-    # This prevents repeated cache size checks within the 7-day window
-    # Update cache timestamp when any work succeeded or was intentionally skipped.
-    if [[ "$skip_cleanup" == "true" ]] || [[ "$brew_success" == "true" ]]; then
+    # Stamp only a finished cleanup; a timed-out one resumes on the next run.
+    if [[ "$brew_success" == "true" ]]; then
         ensure_user_file "$brew_cache_file"
         get_epoch_seconds > "$brew_cache_file"
     fi
