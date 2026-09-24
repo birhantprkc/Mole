@@ -84,7 +84,7 @@ _optimize_catalog_register quarantine_cleanup opt_quarantine_cleanup \
     "Clear Gatekeeper download tracking history" true
 _optimize_catalog_register launch_agents_cleanup opt_launch_agents_cleanup \
     "Launch Agents Cleanup" "Launch Agents Cleanup" \
-    "Remove broken LaunchAgents whose binaries no longer exist" true
+    "Report LaunchAgents whose binaries no longer exist" true
 _optimize_catalog_register notification_cleanup opt_notification_cleanup \
     "Notifications" "Notifications" \
     "Clean old delivered notifications to reduce database bloat" true

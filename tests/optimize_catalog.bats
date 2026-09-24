@@ -72,7 +72,7 @@ shared_file_list_repair|opt_shared_file_list_repair|Shared File Lists|Shared Fil
 disk_verify|opt_disk_verify|Disk Health|Disk Health|Verify filesystem integrity|true
 login_items_audit|opt_login_items_audit|Login Items|Login Items Audit|Audit login items for broken entries|true
 quarantine_cleanup|opt_quarantine_cleanup|Quarantine Database Cleanup|Quarantine Database Cleanup|Clear Gatekeeper download tracking history|true
-launch_agents_cleanup|opt_launch_agents_cleanup|Launch Agents Cleanup|Launch Agents Cleanup|Remove broken LaunchAgents whose binaries no longer exist|true
+launch_agents_cleanup|opt_launch_agents_cleanup|Launch Agents Cleanup|Launch Agents Cleanup|Report LaunchAgents whose binaries no longer exist|true
 notification_cleanup|opt_notification_cleanup|Notifications|Notifications|Clean old delivered notifications to reduce database bloat|true
 coreduet_cleanup|opt_coreduet_cleanup|Usage Data|Usage Data|Clean old usage tracking data|true
 CONTRACT
@@ -123,7 +123,7 @@ contract_hash=$(
         shasum -a 256 |
         awk '{print $1}'
 )
-expected_hash="8896e6dedcab9ab76accb1ea7502c59b711da912473923b089451222ddc61c2c"
+expected_hash="6cb4a8448debaea7eedd3fd99d1af41e1032efb3f0ac1c44cc475d718e8a017e"
 if [[ "$contract_hash" != "$expected_hash" ]]; then
     echo "health optimization contract hash: expected $expected_hash, got $contract_hash"
     exit 1

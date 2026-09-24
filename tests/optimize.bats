@@ -1039,7 +1039,7 @@ EOF
 	[[ "$output" == *"Launch Agents all healthy"* ]]
 }
 
-@test "opt_launch_agents_cleanup detects broken agents" {
+@test "opt_launch_agents_cleanup reports broken agents and leaves them in place" {
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_DRY_RUN=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -1060,12 +1060,19 @@ cat > "$HOME/Library/LaunchAgents/com.test.broken.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
-safe_remove() { return 0; }
+# The audit must never unload or remove the agent (#1617).
+safe_remove() { echo "SAFE_REMOVE $1"; return 0; }
+launchctl() { echo "LAUNCHCTL $*"; return 0; }
 execute_optimization launch_agents_cleanup
+[[ -f "$HOME/Library/LaunchAgents/com.test.broken.plist" ]] || { echo "PLIST_GONE"; exit 1; }
 EOF
 
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Cleaned 1 broken Launch Agent"* ]]
+	[[ "$output" == *"Launch Agent com.test.broken: program missing at /nonexistent/binary"* ]]
+	[[ "$output" == *"left in ~/Library/LaunchAgents"* ]]
+	[[ "$output" != *"SAFE_REMOVE"* ]]
+	[[ "$output" != *"LAUNCHCTL"* ]]
+	[[ "$output" != *"Cleaned"* ]]
 }
 
 @test "opt_launch_agents_cleanup skips healthy agents" {
