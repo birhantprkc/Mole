@@ -1009,24 +1009,6 @@ EOF
 	[[ "$output" == *"pruned"* ]]
 }
 
-@test "opt_launch_services_rebuild handles missing lsregister without exiting" {
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
-set -euo pipefail
-source "$PROJECT_ROOT/lib/core/common.sh"
-source "$PROJECT_ROOT/lib/optimize/tasks.sh"
-get_lsregister_path() {
-    echo ""
-    return 0
-}
-execute_optimization launch_services_rebuild
-echo "survived"
-EOF
-
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"lsregister not found"* ]] || return 1
-	[[ "$output" == *"survived"* ]]
-}
-
 @test "opt_launch_agents_cleanup reports healthy when no directory" {
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_DRY_RUN=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail

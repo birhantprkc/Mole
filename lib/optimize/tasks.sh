@@ -696,58 +696,6 @@ opt_sqlite_vacuum() {
     optimize_task_result_from_counts "$vacuumed" "$((timed_out + failed))" "$policy_skipped"
 }
 
-# LaunchServices rebuild ("Open with" issues).
-opt_launch_services_rebuild() {
-    if [[ "${MO_DEBUG:-}" == "1" ]]; then
-        debug_operation_start "LaunchServices Rebuild" "Rebuild LaunchServices database"
-        debug_operation_detail "Method" "Run lsregister -gc then force rescan with -r -f on local, user, and system domains"
-        debug_operation_detail "Purpose" "Fix \"Open with\" menu issues, file associations, and stale app metadata"
-        debug_operation_detail "Expected outcome" "Correct app associations, fixed duplicate entries, fewer stale app listings"
-        debug_risk_level "LOW" "Database is automatically rebuilt"
-    fi
-
-    if [[ -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Repairing LaunchServices..."
-    fi
-
-    local lsregister
-    lsregister=$(get_lsregister_path)
-
-    if [[ -n "$lsregister" ]]; then
-        local success=0
-
-        if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-            "$lsregister" -gc > /dev/null 2>&1 || true
-            "$lsregister" -r -f -domain local -domain user -domain system > /dev/null 2>&1 || success=$?
-            if [[ $success -ne 0 ]]; then
-                success=0
-                "$lsregister" -r -f -domain local -domain user > /dev/null 2>&1 || success=$?
-            fi
-        else
-            success=0
-        fi
-
-        if [[ -t 1 ]]; then
-            stop_inline_spinner
-        fi
-
-        if [[ $success -eq 0 ]]; then
-            opt_msg "LaunchServices repaired"
-            opt_msg "File associations refreshed"
-            optimize_task_result "$MOLE_OPTIMIZE_OUTCOME_APPLIED"
-        else
-            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Failed to rebuild LaunchServices"
-            optimize_task_result "$MOLE_OPTIMIZE_OUTCOME_FAILED"
-        fi
-    else
-        if [[ -t 1 ]]; then
-            stop_inline_spinner
-        fi
-        echo -e "  ${YELLOW}${ICON_WARNING}${NC} lsregister not found"
-        optimize_task_result "$MOLE_OPTIMIZE_OUTCOME_UNAVAILABLE"
-    fi
-}
-
 # Removed high-risk optimizations:
 # - opt_startup_items_cleanup: Risk of deleting legitimate app helpers
 # - opt_dyld_cache_update: Low benefit, time-consuming, auto-managed by macOS

@@ -29,6 +29,31 @@ EOF
 	[ "$status" -eq 0 ] || return 1
 }
 
+@test "default optimize never rebuilds LaunchServices" {
+    # `lsregister -r -f` re-registered every app and extension on each run:
+    # a running Network Extension VPN (Karing, Shadowrocket) was read as
+    # reinstalled and its tunnel dropped, and Siri / Apple Intelligence
+    # re-indexed every app at high CPU. `-gc` alone prunes nothing on
+    # current macOS, so the task was removed rather than reduced.
+    run env PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/optimize/catalog.sh"
+
+optimize_catalog_handler_for system_maintenance >/dev/null
+if optimize_catalog_handler_for launch_services_rebuild >/dev/null 2>&1; then
+    echo "LaunchServices rebuild is still registered"
+    exit 1
+fi
+matched=$(grep -rnE '"\$lsregister"[^#]*[[:space:]]-r[[:space:]]' "$PROJECT_ROOT/lib" "$PROJECT_ROOT/bin" || true)
+if [[ -n "$matched" ]]; then
+    echo "a code path still passes lsregister -r: $matched"
+    exit 1
+fi
+EOF
+
+    [[ "$status" -eq 0 ]] || { echo "$output"; return 1; }
+}
+
 @test "default optimize catalog never restarts Dock (#1300)" {
     run env PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
@@ -60,7 +85,6 @@ saved_state_cleanup|opt_saved_state_cleanup|App State Cleanup|App State Cleanup|
 fix_broken_configs|opt_fix_broken_configs|Broken Config Repair|Broken Config Repair|Fix corrupted preferences files|true
 network_optimization|opt_network_optimization|Network Cache Refresh|Network Cache Refresh|Optimize DNS cache & restart mDNSResponder|true
 sqlite_vacuum|opt_sqlite_vacuum|Database Optimization|Database Optimization|Compress SQLite databases for Mail, Safari & Messages (skips if apps are running)|true
-launch_services_rebuild|opt_launch_services_rebuild|LaunchServices Repair|LaunchServices Repair|Repair "Open with" menu & file associations|true
 prevent_network_dsstore|opt_prevent_network_dsstore|Prevent Finder .DS_Store|Prevent Finder .DS_Store|Set a persistent Finder preference to stop writing .DS_Store on SMB/AFP/NFS and USB volumes|true
 legacy_overrides_audit|opt_legacy_overrides_audit|Legacy Overrides|Legacy Overrides|Remove hidden App Nap and disk-image verification overrides left by old tweak tools|true
 network_stack_optimize|opt_network_stack_optimize|Network Stack Refresh|Network Stack Refresh|Flush routing table and ARP cache to resolve network issues|true
@@ -123,7 +147,7 @@ contract_hash=$(
         shasum -a 256 |
         awk '{print $1}'
 )
-expected_hash="6cb4a8448debaea7eedd3fd99d1af41e1032efb3f0ac1c44cc475d718e8a017e"
+expected_hash="dc42553fcae1b1d1ebf768d3cfec6d8c0171140dd5a2a532ebacfee91d27146f"
 if [[ "$contract_hash" != "$expected_hash" ]]; then
     echo "health optimization contract hash: expected $expected_hash, got $contract_hash"
     exit 1
@@ -139,7 +163,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/manage/whitelist.sh"
 
 contract_hash=$(get_optimize_whitelist_items | shasum -a 256 | awk '{print $1}')
-expected_hash="04376c036db32e504cac07b054532446465c2fd83a19c0e05a7710fa87f92078"
+expected_hash="fd558bbd50cb04d149f23540b041d03d8e78514e2bd5f1a4d171b9fa6402fb1d"
 if [[ "$contract_hash" != "$expected_hash" ]]; then
     echo "optimize whitelist contract hash: expected $expected_hash, got $contract_hash"
     exit 1
@@ -200,7 +224,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/optimize/tasks.sh"
 
-[[ ${#MOLE_OPTIMIZE_ACTIONS[@]} -eq 21 ]] || exit 1
+[[ ${#MOLE_OPTIMIZE_ACTIONS[@]} -eq 20 ]] || exit 1
 for handler in "${MOLE_OPTIMIZE_HANDLERS[@]}"; do
     if ! declare -F "$handler" >/dev/null; then
         echo "missing handler: $handler"
