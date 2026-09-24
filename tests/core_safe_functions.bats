@@ -1267,6 +1267,21 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+@test "should_protect_path keeps Google identity and Clearcut state (#1607)" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+should_protect_path "$HOME/Library/Caches/GIPPseudonymousID" || exit 1
+should_protect_path "$HOME/Library/Caches/GIPPseudonymousID/device-id" || exit 1
+should_protect_path "$HOME/Library/Caches/CCTClearcutLogger" || exit 1
+should_protect_path "$HOME/Library/Caches/CCTClearcutLogger/queue.dat" || exit 1
+if should_protect_path "$HOME/Library/Caches/ordinary-app/junk"; then
+    exit 1
+fi
+EOF
+    [ "$status" -eq 0 ]
+}
+
 @test "should_protect_path allows only the measured WeChat container cache leaves" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc << 'EOF'
 set -euo pipefail

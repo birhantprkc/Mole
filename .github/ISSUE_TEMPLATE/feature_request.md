@@ -6,6 +6,12 @@ labels: enhancement
 assignees: ''
 ---
 
+## Before submitting
+
+Run `mo update` to install the latest stable version, then check `mo --version`. Check whether the requested feature is already available.
+
+- [ ] I updated to the latest stable version and checked that this feature is still missing.
+
 ## Feature description
 
 A clear and concise description of the feature you'd like to see. We suggest using English for better global understanding.

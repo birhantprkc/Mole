@@ -68,33 +68,6 @@ opt_existing_file_size_kb_strict() {
     echo "$(((bytes + 1023) / 1024))"
 }
 
-run_launchctl_unload() {
-    local plist_file="$1"
-    local need_sudo="${2:-false}"
-
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
-        return 0
-    fi
-
-    if [[ "$need_sudo" == "true" ]]; then
-        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-            return 0
-        fi
-        if ! optimize_sudo_available; then
-            return 0
-        fi
-        local unload_rc=0
-        run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" sudo launchctl \
-            unload "$plist_file" 2> /dev/null || unload_rc=$?
-    else
-        local unload_rc=0
-        run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" launchctl \
-            unload "$plist_file" 2> /dev/null || unload_rc=$?
-    fi
-    [[ $unload_rc -eq 124 || $unload_rc -ge 128 ]] && return "$unload_rc"
-    return 0
-}
-
 needs_permissions_repair() {
     local owner
     owner=$($STAT_BSD -f %Su "$HOME" 2> /dev/null || echo "")
@@ -723,58 +696,6 @@ opt_sqlite_vacuum() {
     optimize_task_result_from_counts "$vacuumed" "$((timed_out + failed))" "$policy_skipped"
 }
 
-# LaunchServices rebuild ("Open with" issues).
-opt_launch_services_rebuild() {
-    if [[ "${MO_DEBUG:-}" == "1" ]]; then
-        debug_operation_start "LaunchServices Rebuild" "Rebuild LaunchServices database"
-        debug_operation_detail "Method" "Run lsregister -gc then force rescan with -r -f on local, user, and system domains"
-        debug_operation_detail "Purpose" "Fix \"Open with\" menu issues, file associations, and stale app metadata"
-        debug_operation_detail "Expected outcome" "Correct app associations, fixed duplicate entries, fewer stale app listings"
-        debug_risk_level "LOW" "Database is automatically rebuilt"
-    fi
-
-    if [[ -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Repairing LaunchServices..."
-    fi
-
-    local lsregister
-    lsregister=$(get_lsregister_path)
-
-    if [[ -n "$lsregister" ]]; then
-        local success=0
-
-        if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-            "$lsregister" -gc > /dev/null 2>&1 || true
-            "$lsregister" -r -f -domain local -domain user -domain system > /dev/null 2>&1 || success=$?
-            if [[ $success -ne 0 ]]; then
-                success=0
-                "$lsregister" -r -f -domain local -domain user > /dev/null 2>&1 || success=$?
-            fi
-        else
-            success=0
-        fi
-
-        if [[ -t 1 ]]; then
-            stop_inline_spinner
-        fi
-
-        if [[ $success -eq 0 ]]; then
-            opt_msg "LaunchServices repaired"
-            opt_msg "File associations refreshed"
-            optimize_task_result "$MOLE_OPTIMIZE_OUTCOME_APPLIED"
-        else
-            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Failed to rebuild LaunchServices"
-            optimize_task_result "$MOLE_OPTIMIZE_OUTCOME_FAILED"
-        fi
-    else
-        if [[ -t 1 ]]; then
-            stop_inline_spinner
-        fi
-        echo -e "  ${YELLOW}${ICON_WARNING}${NC} lsregister not found"
-        optimize_task_result "$MOLE_OPTIMIZE_OUTCOME_UNAVAILABLE"
-    fi
-}
-
 # Removed high-risk optimizations:
 # - opt_startup_items_cleanup: Risk of deleting legitimate app helpers
 # - opt_dyld_cache_update: Low benefit, time-consuming, auto-managed by macOS
@@ -1253,7 +1174,11 @@ launch_agent_volume_mounted() {
     esac
 }
 
-# Broken LaunchAgent cleanup.
+# Broken LaunchAgent audit (#1617). Reports each agent whose absolute program
+# is missing and leaves it alone: a missing executable does not prove the
+# service is unwanted, and the plist is the configuration the user would have
+# to rebuild once the program is back. No launchctl unload either, since that
+# acts on the label and can stop a live job loaded from another file.
 opt_launch_agents_cleanup() {
     local agents_dir="$HOME/Library/LaunchAgents"
 
@@ -1264,7 +1189,6 @@ opt_launch_agents_cleanup() {
     fi
 
     local broken_count=0
-    local -a broken_plists=()
 
     for plist in "$agents_dir"/*.plist; do
         [[ -f "$plist" ]] || continue
@@ -1289,8 +1213,15 @@ opt_launch_agents_cleanup() {
         # unplugged -- neither is a broken agent.
         if [[ -n "$binary" && "$binary" == /* && ! -e "$binary" ]] &&
             launch_agent_volume_mounted "$binary"; then
+            local label=""
+            plist_rc=0
+            label=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" \
+                /usr/libexec/PlistBuddy -c "Print :Label" \
+                "$plist" 2> /dev/null) || plist_rc=$?
+            [[ $plist_rc -eq 124 || $plist_rc -ge 128 ]] && return "$plist_rc"
+            [[ -n "$label" ]] || label="$(basename "$plist" .plist)"
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Launch Agent $label: program missing at ${binary/#$HOME/~}"
             broken_count=$((broken_count + 1))
-            broken_plists+=("$plist")
         fi
     done
 
@@ -1300,30 +1231,8 @@ opt_launch_agents_cleanup() {
         return 0
     fi
 
-    local removed_count=0
-    local failed=0
-    for plist in "${broken_plists[@]}"; do
-        local unload_rc=0
-        run_launchctl_unload "$plist" || unload_rc=$?
-        [[ $unload_rc -eq 124 || $unload_rc -ge 128 ]] && return "$unload_rc"
-        local remove_rc=0
-        safe_remove "$plist" true > /dev/null 2>&1 || remove_rc=$?
-        if [[ $remove_rc -eq 124 || $remove_rc -ge 128 ]]; then
-            return "$remove_rc"
-        elif [[ $remove_rc -eq 0 ]]; then
-            removed_count=$((removed_count + 1))
-        else
-            failed=$((failed + 1))
-        fi
-    done
-
-    if [[ $removed_count -gt 0 ]]; then
-        opt_msg "Cleaned $removed_count broken Launch Agent(s)"
-    fi
-    if [[ $failed -gt 0 ]]; then
-        echo -e "  ${YELLOW}${ICON_WARNING}${NC} Failed to remove $failed broken Launch Agent(s)"
-    fi
-    optimize_task_result_from_counts "$removed_count" "$failed"
+    echo -e "  ${YELLOW}${ICON_WARNING}${NC} $broken_count Launch Agent(s) point at a missing program · left in ~/Library/LaunchAgents"
+    optimize_task_result "$MOLE_OPTIMIZE_OUTCOME_ATTENTION"
 }
 
 # macOS periodic maintenance scripts (daily/weekly/monthly).

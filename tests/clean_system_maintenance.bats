@@ -694,6 +694,77 @@ EOF
     [[ "$output" == *"Homebrew cleanup"* ]]
 }
 
+@test "clean_homebrew runs cleanup even when the download cache is small" {
+    # Old formula versions live in the Cellar, not in ~/Library/Caches/Homebrew,
+    # so a nearly empty cache said nothing about what cleanup would free. On
+    # the maintainer's Mac 881MB of 930MB was old Cellar versions.
+    run /bin/bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/brew.sh"
+
+mkdir -p "$HOME/.cache/mole" "$HOME/Library/Caches/Homebrew"
+rm -f "$HOME/.cache/mole/brew_last_cleanup"
+
+    start_inline_spinner(){ :; }
+    stop_inline_spinner(){ :; }
+    note_activity(){ :; }
+    run_with_timeout() {
+        shift
+        if [[ "$1" == "du" ]]; then
+            echo "1024 $3"
+            return 0
+        fi
+        "$@"
+    }
+    brew() {
+        case "$1" in
+            cleanup)
+                echo "Removing: /opt/homebrew/Cellar/node/24.1.0... (2,011 files, 88.5MB)"
+                echo "==> This operation has freed approximately 88.5MB of disk space."
+                return 0
+                ;;
+            *) return 0 ;;
+        esac
+    }
+
+    clean_homebrew
+    [[ -s "$HOME/.cache/mole/brew_last_cleanup" ]] || { echo "no timestamp after success"; exit 1; }
+EOF
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == *"Homebrew cleanup"* ]] || { echo "$output"; return 1; }
+}
+
+@test "clean_homebrew leaves no timestamp when cleanup times out" {
+    run /bin/bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/brew.sh"
+
+mkdir -p "$HOME/.cache/mole"
+rm -f "$HOME/.cache/mole/brew_last_cleanup"
+
+    start_inline_spinner(){ :; }
+    stop_inline_spinner(){ :; }
+    note_activity(){ :; }
+    run_with_timeout() {
+        shift
+        if [[ "$1" == "brew" && "$2" == "cleanup" ]]; then
+            return 124
+        fi
+        "$@"
+    }
+    brew() { return 0; }
+
+    clean_homebrew
+    [[ ! -e "$HOME/.cache/mole/brew_last_cleanup" ]] || { echo "a timed-out cleanup was stamped"; exit 1; }
+EOF
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == *"timed out"* ]] || { echo "$output"; return 1; }
+}
+
 @test "clean_homebrew prevents cleanup from implicitly autoremoving formulae" {
     run /bin/bash --noprofile --norc << 'EOF'
 set -euo pipefail
