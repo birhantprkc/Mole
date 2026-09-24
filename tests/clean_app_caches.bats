@@ -782,7 +782,7 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"ChatGPT cache"* ]] || return 1
     [[ "$output" == *"Claude desktop cache"* ]] || return 1
-    [[ "$output" == *"Google Clearcut logs"* ]] || return 1
+    [[ "$output" != *"Google Clearcut logs"* ]] || return 1
     [[ "$output" == *"LM Studio cache"* ]] || return 1
     [[ "$output" != *"Codex"* ]]
 }
