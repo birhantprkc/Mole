@@ -290,7 +290,7 @@ clean_homebrew() {
                 run_brew_cleanup_preview "$cleanup_timeout" "$dry_run_cleanup_file" || dry_run_cleanup_exit=$?
                 if [[ $dry_run_cleanup_exit -eq 0 ]]; then
                     show_brew_cleanup_preview "$dry_run_cleanup_file" && note_activity
-                elif [[ $dry_run_cleanup_exit -eq 124 ]]; then
+                elif mole_rc_timeout "$dry_run_cleanup_exit"; then
                     echo -e "  ${GRAY}${ICON_WARNING}${NC} Homebrew cleanup preview timed out · run ${GRAY}brew cleanup --dry-run${NC} manually"
                     note_activity
                 else
@@ -304,7 +304,7 @@ clean_homebrew() {
             run_brew_autoremove_preview "$autoremove_preview_timeout" "$dry_run_autoremove_file" || dry_run_autoremove_exit=$?
             if [[ $dry_run_autoremove_exit -eq 0 ]] && brew_autoremove_preview_has_items "$dry_run_autoremove_file"; then
                 show_brew_autoremove_preview "$dry_run_autoremove_file"
-            elif [[ $dry_run_autoremove_exit -eq 124 ]]; then
+            elif mole_rc_timeout "$dry_run_autoremove_exit"; then
                 echo -e "  ${GRAY}${ICON_WARNING}${NC} Autoremove preview timed out · run ${GRAY}brew autoremove --dry-run${NC} manually"
             fi
         fi
@@ -355,7 +355,7 @@ clean_homebrew() {
                 note_activity
             fi
         fi
-    elif [[ $brew_exit -eq 124 ]]; then
+    elif mole_rc_timeout "$brew_exit"; then
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Homebrew cleanup timed out · run ${GRAY}brew cleanup${NC} manually"
         note_activity
     fi
@@ -363,7 +363,7 @@ clean_homebrew() {
     autoremove_preview_file=$(create_temp_file)
     local autoremove_preview_exit=0
     run_brew_autoremove_preview "$autoremove_preview_timeout" "$autoremove_preview_file" || autoremove_preview_exit=$?
-    if [[ $autoremove_preview_exit -eq 124 ]]; then
+    if mole_rc_timeout "$autoremove_preview_exit"; then
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Autoremove preview timed out · run ${GRAY}brew autoremove --dry-run${NC} manually"
         # Keep the manual-action guidance visible past the idle-section erase.
         note_activity

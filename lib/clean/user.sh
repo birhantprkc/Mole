@@ -256,7 +256,7 @@ _incomplete_download_delete_guard_allows() {
 
     local open_state=0
     _mole_paths_have_open_handle "$path" || open_state=$?
-    if [[ $open_state -eq 124 || $open_state -ge 128 ]]; then
+    if mole_rc_timeout_or_signal "$open_state"; then
         _mole_record_clean_cancellation "$open_state"
         return "$open_state"
     fi
@@ -289,7 +289,7 @@ _clean_incomplete_downloads() {
             [[ -e "$f" ]] || continue
             local open_state=0
             _mole_paths_have_open_handle "$f" || open_state=$?
-            if [[ $open_state -eq 124 || $open_state -ge 128 ]]; then
+            if mole_rc_timeout_or_signal "$open_state"; then
                 _mole_record_clean_cancellation "$open_state"
                 return 0
             fi
@@ -306,7 +306,7 @@ _clean_incomplete_downloads() {
             local guarded_rc=0
             safe_clean_guarded _incomplete_download_delete_guard_allows \
                 "$f" "$label" || guarded_rc=$?
-            if [[ $guarded_rc -eq 124 || $guarded_rc -ge 128 ]]; then
+            if mole_rc_timeout_or_signal "$guarded_rc"; then
                 _mole_record_clean_cancellation "$guarded_rc"
                 return 0
             fi
@@ -1568,7 +1568,7 @@ clean_external_volume_target() {
     if [[ $metadata_scan_rc -ne 0 ]]; then
         : > "$metadata_scan_file" || true
         stop_section_spinner
-        if [[ $metadata_scan_rc -eq 124 ]]; then
+        if mole_rc_timeout "$metadata_scan_rc"; then
             echo -e "  ${YELLOW}${ICON_WARNING}${NC} External volume cleanup · ${GRAY}scan timed out, no changes${NC}"
         elif [[ $metadata_scan_rc -ge 128 ]]; then
             echo -e "  ${YELLOW}${ICON_WARNING}${NC} External volume cleanup · ${GRAY}scan interrupted, no changes${NC}"
