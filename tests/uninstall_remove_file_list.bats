@@ -129,6 +129,9 @@ EOF
 	run env PROJECT_ROOT="$PROJECT_ROOT" PS_COUNT="$ps_count" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 ps() {
+	# One snapshot is a table read plus an executable-path read; count and
+	# answer only the table read.
+	[[ "$*" == *comm=* ]] && return 0
 	printf 'x' >> "$PS_COUNT"
 	local calls
 	calls=$(wc -c < "$PS_COUNT" | tr -d ' ')

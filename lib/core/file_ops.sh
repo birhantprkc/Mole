@@ -316,6 +316,14 @@ _mole_load_process_table() {
         _MOLE_PROCESS_TABLE_STATE="unavailable"
         return 1
     fi
+    # Before args, ps cuts comm to 16 bytes; as the LAST column it prints the
+    # whole executable path, spaces included. That second read is the only
+    # unambiguous answer to "which bundle runs this", because argv can be
+    # rewritten and a path with spaces has no field boundary. It rides on the
+    # end of each line after \037; a pid missing from it keeps the argv
+    # heuristic. A failed read only loses the extra evidence.
+    local executables=""
+    executables=$(ps -axo pid=,comm= 2> /dev/null) || executables=""
 
     # Every text tool below runs under LC_ALL=C so it compares BYTES. A process
     # table is not guaranteed to be UTF-8: an app named 富途牛牛 makes awk and
@@ -329,7 +337,19 @@ _mole_load_process_table() {
     # carries that id in its own argv. Walking the ppid chain drops the whole
     # invoking tree, which is also what excludes the `du` and `find` children
     # forked to MEASURE the very directory being judged.
-    if ! filtered=$(printf '%s\n' "$raw" | LC_ALL=C awk -v self="$$" '
+    if ! filtered=$(printf '%s\n' "$raw" | MOLE_PS_EXECUTABLES="$executables" LC_ALL=C awk -v self="$$" '
+        BEGIN {
+            rows = split(ENVIRON["MOLE_PS_EXECUTABLES"], exe_rows, "\n")
+            for (r = 1; r <= rows; r++) {
+                row = exe_rows[r]
+                sub(/^[[:space:]]+/, "", row)
+                if (!match(row, /^[0-9]+[[:space:]]+\//)) continue
+                exe_pid = substr(row, 1, RLENGTH)
+                sub(/[[:space:]]+\/$/, "", exe_pid)
+                exe_path = substr(row, RLENGTH)
+                if (index(exe_path, "\037") == 0) exe[exe_pid] = exe_path
+            }
+        }
         NR > 1 {
             pid = $1
             parent[pid] = $2
@@ -364,7 +384,8 @@ _mole_load_process_table() {
                     base == "ps" || base == "grep" || base == "stat" ||
                     base == "ls" || base == "rm") continue
                 if (index(tolower(text[pid]), "com.tw93.mole") > 0) continue
-                print text[pid]
+                if (pid in exe) print text[pid] "\037" exe[pid]
+                else print text[pid]
             }
         }'); then
         # A filter that died mid-table would leave a SHORT table, which reads
@@ -518,8 +539,9 @@ _mole_app_bundle_identifier() {
 
 # A corroborated shape-2 process line whose executable lives in an app bundle
 # below /Applications or ~/Applications is attributed by that bundle's id.
-# Inspect only the leading executable path, removing a truncated comm only
-# when argv repeats its prefix. Never search later arguments for an app.
+# The executable path ps reported for the pid (after \037) decides the bundle.
+# Without it, inspect only the leading argv path, removing a truncated comm
+# only when argv repeats its prefix. Never search later arguments for an app.
 # 0 = the line belongs to a different app, so it says nothing about the owner.
 # 1 = the line may be the owner's and its tokens count:
 #   - the bundle's identifier is the owner's, or the two extend each other at a
@@ -530,7 +552,11 @@ _mole_app_bundle_identifier() {
 #   - the identifier cannot be read, or no such bundle path is on the line.
 _mole_process_line_belongs_to_other_app() {
     local line="$1" owner="$2" leaf="$3"
-    local field root head tail bundle=""
+    local field root head tail bundle="" executable=""
+    if [[ "$line" == *$'\037'* ]]; then
+        executable="${line##*$'\037'}"
+        line="${line%$'\037'*}"
+    fi
     # ps can prefix argv with a truncated 16-byte comm. Remove it only when
     # argv repeats that exact path prefix; otherwise keep uncertain lines busy.
     line="${line#"${line%%[![:space:]]*}"}"
@@ -541,6 +567,7 @@ _mole_process_line_belongs_to_other_app() {
         line="$arguments"
     fi
     field="$line"
+    [[ "$executable" == /* ]] && field="$executable"
     for root in /Applications "$HOME/Applications"; do
         [[ "$field" == "$root/"* ]] || continue
         head=""
@@ -570,7 +597,7 @@ _mole_process_line_belongs_to_other_app() {
     local executable_pattern="/${leaf}([[:space:]]|\$)"
     local other_app=true
     if [[ "$id" == "$owner" || "$id" == "$owner".* || "$owner" == "$id".* ||
-        "$line" =~ $executable_pattern ]]; then
+        "$line" =~ $executable_pattern || "${executable##*/}" == "$leaf" ]]; then
         other_app=false
     fi
     [[ "$restore_nocasematch" == "true" ]] && shopt -u nocasematch
