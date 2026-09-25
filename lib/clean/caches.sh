@@ -617,9 +617,7 @@ clean_python_bytecode_cache_group() {
         fi
     fi
 
-    files_cleaned=$((${files_cleaned:-0} + removed_count))
-    total_size_cleaned=$((${total_size_cleaned:-0} + total_size_kb))
-    total_items=$((${total_items:-0} + 1))
+    mole_add_cleaned_row "$removed_count" "$total_size_kb"
     if declare -f note_activity > /dev/null 2>&1; then
         note_activity
     fi

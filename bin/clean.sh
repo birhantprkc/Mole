@@ -1508,9 +1508,7 @@ _safe_clean_impl() {
             line_color=$(cleanup_result_color_kb "$total_size_kb")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} $description${NC} · ${count_note}${line_color}$size_human${NC}"
         fi
-        files_cleaned=$((files_cleaned + total_count))
-        total_size_cleaned=$((total_size_cleaned + total_size_kb))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$total_count" "$total_size_kb"
         note_activity
     fi
 

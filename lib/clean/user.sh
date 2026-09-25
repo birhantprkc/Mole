@@ -591,9 +591,7 @@ _clean_chromium_old_versions() {
             line_color=$(cleanup_result_color_kb "$total_size")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} ${label} old versions${NC} · ${line_color}${cleaned_count} dirs, $size_human${NC}"
         fi
-        files_cleaned=$((files_cleaned + cleaned_count))
-        total_size_cleaned=$((total_size_cleaned + total_size))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size"
         note_activity
     fi
     if [[ -n "$stopped_reason" ]]; then
@@ -834,9 +832,7 @@ clean_edge_updater_old_versions() {
             line_color=$(cleanup_result_color_kb "$total_size")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} Edge updater old versions${NC} · ${line_color}${cleaned_count} dirs, $size_human${NC}"
         fi
-        files_cleaned=$((files_cleaned + cleaned_count))
-        total_size_cleaned=$((total_size_cleaned + total_size))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size"
         note_activity
     fi
     if [[ -n "$stopped_reason" ]]; then
@@ -1051,9 +1047,7 @@ clean_app_caches() {
                 echo -e "  ${line_color}${ICON_SUCCESS}${NC} Sandboxed app caches${NC} · ${line_color}$size_human${NC}"
             fi
         fi
-        files_cleaned=$((files_cleaned + cleaned_count))
-        total_size_cleaned=$((total_size_cleaned + total_size))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size"
         note_activity
     fi
 
@@ -1114,9 +1108,7 @@ clean_handoff_pasteboard_cache() {
         line_color=$(cleanup_result_color_kb "$total_kb")
         echo -e "  ${line_color}${ICON_SUCCESS}${NC} Handoff clipboard cache${NC} · ${line_color}$size_human${NC}"
     fi
-    files_cleaned=$((files_cleaned + cleaned_count))
-    total_size_cleaned=$((total_size_cleaned + total_kb))
-    total_items=$((total_items + 1))
+    mole_add_cleaned_row "$cleaned_count" "$total_kb"
     note_activity
 }
 
@@ -1410,9 +1402,7 @@ clean_group_container_caches() {
                 echo -e "  ${line_color}${ICON_SUCCESS}${NC} Group Containers logs/caches${NC} · ${line_color}$size_human${NC}"
             fi
         fi
-        files_cleaned=$((files_cleaned + cleaned_count))
-        total_size_cleaned=$((total_size_cleaned + total_size))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size"
         note_activity
     fi
 }
@@ -1681,9 +1671,7 @@ clean_external_volume_target() {
             line_color=$(cleanup_result_color_kb "$total_size")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} External volume cleanup${NC} · ${line_color}${volume_name}, $size_human${NC}"
         fi
-        files_cleaned=$((files_cleaned + cleaned_count))
-        total_size_cleaned=$((total_size_cleaned + total_size))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size"
         note_activity
     fi
 
@@ -2477,9 +2465,7 @@ clean_application_support_logs() {
                 echo -e "  ${line_color}${ICON_SUCCESS}${NC} Application Support logs/caches${NC} · ${line_color}$size_human${NC}"
             fi
         fi
-        files_cleaned=$((files_cleaned + cleaned_count))
-        total_size_cleaned=$((total_size_cleaned + total_size_kb))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size_kb"
         note_activity
     fi
 }
@@ -2563,9 +2549,7 @@ clean_cached_device_firmware() {
             line_color=$(cleanup_result_color_kb "$total_size_kb")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} Cached device firmware${NC} · ${line_color}${cleaned_count} files, $size_human${NC}"
         fi
-        files_cleaned=$((files_cleaned + cleaned_count))
-        total_size_cleaned=$((total_size_cleaned + total_size_kb))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size_kb"
         note_activity
     fi
 }

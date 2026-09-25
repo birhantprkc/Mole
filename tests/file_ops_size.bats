@@ -254,3 +254,20 @@ SCRIPT
     [[ "$output" == "0:0:0:0 1:0:1:0 124:0:1:0 130:130:0:130 " ]]
 }
 
+@test "mole_add_cleaned_row adds one category and ignores non-numeric input" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc << 'SCRIPT'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+files_cleaned=2
+total_size_cleaned=10
+total_items=1
+removed=3
+mole_add_cleaned_row 4 "$removed"
+mole_add_cleaned_row "removed" "12KB"
+mole_add_cleaned_row "" ""
+printf 'FILES=%s KB=%s ITEMS=%s\n' "$files_cleaned" "$total_size_cleaned" "$total_items"
+SCRIPT
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == "FILES=6 KB=13 ITEMS=4" ]]
+}

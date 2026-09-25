@@ -1481,9 +1481,7 @@ clean_xcode_documentation_cache() {
 
     if [[ $removed_count -gt 0 ]]; then
         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Xcode documentation cache · removed ${removed_count} old indexes"
-        files_cleaned=$((${files_cleaned:-0} + removed_count))
-        total_size_cleaned=$((${total_size_cleaned:-0} + removed_size_kb))
-        total_items=$((${total_items:-0} + 1))
+        mole_add_cleaned_row "$removed_count" "$removed_size_kb"
         if [[ $skipped_count -gt 0 ]]; then
             echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode documentation cache · skipped ${skipped_count} protected items"
         fi
@@ -1987,9 +1985,7 @@ clean_xcode_system_coresimulator_caches() {
         if [[ $failed_count -gt 0 ]]; then
             echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode Simulator system cache · could not remove ${failed_count} entries"
         fi
-        files_cleaned=$((${files_cleaned:-0} + removed_count))
-        total_size_cleaned=$((${total_size_cleaned:-0} + removed_size_kb))
-        total_items=$((${total_items:-0} + 1))
+        mole_add_cleaned_row "$removed_count" "$removed_size_kb"
         note_activity
     elif [[ $failed_count -gt 0 ]]; then
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode Simulator system cache · could not remove ${failed_count} entries"
@@ -2247,9 +2243,7 @@ clean_xcode_device_support() {
                     local line_color
                     line_color=$(cleanup_result_color_kb "$removed_size_kb")
                     echo -e "  ${line_color}${ICON_SUCCESS}${NC} ${display_name} · removed ${removed_count} old versions, ${line_color}${stale_size_human}${NC}"
-                    files_cleaned=$((${files_cleaned:-0} + removed_count))
-                    total_size_cleaned=$((${total_size_cleaned:-0} + removed_size_kb))
-                    total_items=$((${total_items:-0} + 1))
+                    mole_add_cleaned_row "$removed_count" "$removed_size_kb"
                     note_activity
                 fi
                 if [[ -n "$stop_reason" ]]; then

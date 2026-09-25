@@ -1204,9 +1204,7 @@ clean_time_machine_failed_backups() {
                     line_color=$(cleanup_result_color_kb "$size_kb")
                     echo -e "  ${line_color}${ICON_SUCCESS}${NC} Incomplete backup: $backup_name${NC} · ${line_color}$size_human${NC}"
                     tm_cleaned=$((tm_cleaned + 1))
-                    files_cleaned=$((files_cleaned + 1))
-                    total_size_cleaned=$((total_size_cleaned + size_kb))
-                    total_items=$((total_items + 1))
+                    mole_add_cleaned_row 1 "$size_kb"
                     note_activity
                 else
                     echo -e "  ${YELLOW}!${NC} Could not delete: $backup_name · try manually with sudo"
@@ -1358,9 +1356,7 @@ clean_time_machine_failed_backups() {
                         line_color=$(cleanup_result_color_kb "$size_kb")
                         echo -e "  ${line_color}${ICON_SUCCESS}${NC} Incomplete APFS backup in $bundle_name: $backup_name${NC} · ${line_color}$size_human${NC}"
                         tm_cleaned=$((tm_cleaned + 1))
-                        files_cleaned=$((files_cleaned + 1))
-                        total_size_cleaned=$((total_size_cleaned + size_kb))
-                        total_items=$((total_items + 1))
+                        mole_add_cleaned_row 1 "$size_kb"
                         note_activity
                     else
                         echo -e "  ${YELLOW}!${NC} Could not delete from bundle: $backup_name"

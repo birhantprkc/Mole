@@ -251,9 +251,7 @@ clean_xcode_derived_data() {
         local line_color
         line_color=$(cleanup_result_color_kb "$removed_size_kb" 2> /dev/null || echo "$GREEN")
         echo -e "  ${line_color}${ICON_SUCCESS}${NC} Xcode DerivedData · ${removed} ${project_label}, ${line_color}${size_human}${NC}"
-        files_cleaned=$((${files_cleaned:-0} + removed))
-        total_size_cleaned=$((${total_size_cleaned:-0} + removed_size_kb))
-        total_items=$((${total_items:-0} + 1))
+        mole_add_cleaned_row "$removed" "$removed_size_kb"
         note_activity
     fi
     if [[ -n "$stopped_reason" ]]; then
@@ -1718,9 +1716,7 @@ clean_autodesk_fusion_old_bundles() {
             line_color=$(cleanup_result_color_kb "$total_size")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} Autodesk Fusion old versions${NC} · ${line_color}${cleaned_count} dirs, $size_human${NC}"
         fi
-        files_cleaned=$((${files_cleaned:-0} + cleaned_count))
-        total_size_cleaned=$((${total_size_cleaned:-0} + total_size))
-        total_items=$((${total_items:-0} + 1))
+        mole_add_cleaned_row "$cleaned_count" "$total_size"
         note_activity
     fi
     if [[ $failed_count -gt 0 ]]; then
@@ -1928,9 +1924,7 @@ clean_neatdm_stale_segments() {
             line_color=$(cleanup_result_color_kb "$stale_kb")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} NeatDM stale downloads · ${stale_count} items, ${line_color}${size_human}${NC}"
         fi
-        files_cleaned=$((files_cleaned + stale_count))
-        total_size_cleaned=$((total_size_cleaned + stale_kb))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$stale_count" "$stale_kb"
         note_activity
     fi
 }

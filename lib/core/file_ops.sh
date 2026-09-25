@@ -3715,6 +3715,21 @@ get_path_size_kb() {
         [[ "${MO_DEBUG:-}" == "1" ]] && debug_log "get_path_size_kb: Failed to get size for $path (returned: $size)"
         echo "0"
     fi
+}
+
+# Add one reported cleanup row to the run totals: its item count, its KB, and
+# one category. Every section that prints its own result row goes through
+# here, so non-numeric input counts as zero instead of arithmetic on a name.
+# Dry-run totals are rebuilt from the preview ledger at the end of the run.
+mole_add_cleaned_row() {
+    local count="${1:-0}" size_kb="${2:-0}"
+    [[ "$count" =~ ^[0-9]+$ ]] || count=0
+    [[ "$size_kb" =~ ^[0-9]+$ ]] || size_kb=0
+    files_cleaned=$((${files_cleaned:-0} + count))
+    total_size_cleaned=$((${total_size_cleaned:-0} + size_kb))
+    total_items=$((${total_items:-0} + 1))
+}
+
 # Classify a per-item get_path_size_kb status for a caller whose size only
 # feeds totals (bugs reference, section 15). A timeout or failure leaves the
 # item eligible with an unknown size and marks the freed total partial; a

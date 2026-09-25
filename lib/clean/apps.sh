@@ -101,9 +101,7 @@ clean_ds_store_tree() {
             line_color=$(cleanup_result_color_kb "$size_kb")
             echo -e "  ${line_color}${ICON_SUCCESS}${NC} $label${NC} · ${line_color}$file_count files, $size_human${NC}"
         fi
-        files_cleaned=$((files_cleaned + file_count))
-        total_size_cleaned=$((total_size_cleaned + size_kb))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$file_count" "$size_kb"
         note_activity
     fi
     if [[ $delete_rc -ne 0 ]]; then
@@ -2098,8 +2096,7 @@ clean_orphaned_container_stubs() {
             echo -e "  ${GREEN}${ICON_SUCCESS}${NC} Orphaned app container stubs, ${GREEN}${removed_count} removed${NC}"
             note_activity
         fi
-        files_cleaned=$((files_cleaned + removed_count))
-        total_items=$((total_items + 1))
+        mole_add_cleaned_row "$removed_count" 0
     fi
     if [[ $failed_count -gt 0 ]]; then
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Orphaned container stubs: $failed_count could not be removed"
