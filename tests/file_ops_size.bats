@@ -235,3 +235,22 @@ EOF
     [ "$status" -eq 0 ] || return 1
     [ "$output" = "RC=1 SIZE=" ]
 }
+
+@test "mole_item_size_continues keeps an item through a failed size and stops on a signal" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc << 'SCRIPT'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+MOLE_CURRENT_COMMAND=clean
+for rc in 0 1 124 130; do
+    MOLE_CLEAN_CANCEL_STATUS=0
+    MOLE_CLEAN_SIZING_TIMEOUTS=0
+    result=0
+    mole_item_size_continues "$rc" || result=$?
+    printf '%s:%s:%s:%s ' "$rc" "$result" "$MOLE_CLEAN_SIZING_TIMEOUTS" "$MOLE_CLEAN_CANCEL_STATUS"
+done
+SCRIPT
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == "0:0:0:0 1:0:1:0 124:0:1:0 130:130:0:130 " ]]
+}
+

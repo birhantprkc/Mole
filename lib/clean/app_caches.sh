@@ -155,14 +155,18 @@ clean_xcode_derived_data() {
                 dry_run_stopped_reason=$(_xcode_cleanup_skip_reason "$xcode_state")
                 break
             fi
-            local size_rc=0
+            local size_rc=0 stop_rc=0
             dir_size_kb=$(get_path_size_kb "$dir" 2> /dev/null) || size_rc=$?
-            if [[ $size_rc -ne 0 ]]; then
+            mole_item_size_continues "$size_rc" || stop_rc=$?
+            if [[ $stop_rc -ne 0 ]]; then
                 stop_section_spinner
-                _mole_record_clean_cancellation "$size_rc"
-                return "$size_rc"
+                return "$stop_rc"
             fi
-            [[ "$dir_size_kb" =~ ^[0-9]+$ ]] || dir_size_kb=0
+            local size_known=true
+            [[ $size_rc -eq 0 && "$dir_size_kb" =~ ^[0-9]+$ ]] || {
+                dir_size_kb=0
+                size_known=false
+            }
             xcode_state=0
             _xcode_cleanup_process_state || xcode_state=$?
             if [[ $xcode_state -ne 1 ]]; then
@@ -170,7 +174,7 @@ clean_xcode_derived_data() {
                 break
             fi
             if declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
-                record_dry_run_cleanup_target "$dir" "$dir_size_kb" 1 true || continue
+                record_dry_run_cleanup_target "$dir" "$dir_size_kb" 1 "$size_known" || continue
             fi
             size_kb=$((size_kb + dir_size_kb))
             dry_run_count=$((dry_run_count + 1))
@@ -215,14 +219,14 @@ clean_xcode_derived_data() {
         fi
 
         local dir_size_kb=0
-        local size_rc=0
+        local size_rc=0 stop_rc=0
         dir_size_kb=$(get_path_size_kb "$dir" 2> /dev/null) || size_rc=$?
-        if [[ $size_rc -ne 0 ]]; then
+        mole_item_size_continues "$size_rc" || stop_rc=$?
+        if [[ $stop_rc -ne 0 ]]; then
             stop_section_spinner
-            _mole_record_clean_cancellation "$size_rc"
-            return "$size_rc"
+            return "$stop_rc"
         fi
-        [[ "$dir_size_kb" =~ ^[0-9]+$ ]] || dir_size_kb=0
+        [[ $size_rc -eq 0 && "$dir_size_kb" =~ ^[0-9]+$ ]] || dir_size_kb=0
 
         # Sizing is timeout-bounded but can still take long enough for a build
         # to start. Recheck at the deletion boundary, not only before du.
@@ -1900,9 +1904,8 @@ clean_neatdm_stale_segments() {
         local size_kb=""
         local size_rc=0
         size_kb=$(get_path_size_kb "$seg_dir") || size_rc=$?
-        [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-        [[ $size_rc -eq 0 ]] || return "$size_rc"
-        [[ "$size_kb" =~ ^[0-9]+$ ]] || size_kb=0
+        mole_item_size_continues "$size_rc" || return $?
+        [[ $size_rc -eq 0 && "$size_kb" =~ ^[0-9]+$ ]] || size_kb=0
 
         if [[ "$DRY_RUN" != "true" ]]; then
             if safe_remove "$seg_dir" true; then

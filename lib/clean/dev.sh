@@ -1889,9 +1889,12 @@ clean_xcode_system_coresimulator_caches() {
             local entry_size_kb=""
             local size_rc=0
             entry_size_kb=$(get_path_size_kb "$entry" 2> /dev/null) || size_rc=$?
-            [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-            [[ $size_rc -eq 0 ]] || return "$size_rc"
-            [[ "$entry_size_kb" =~ ^[0-9]+$ ]] || entry_size_kb=0
+            mole_item_size_continues "$size_rc" || return $?
+            local size_known=true
+            [[ $size_rc -eq 0 && "$entry_size_kb" =~ ^[0-9]+$ ]] || {
+                entry_size_kb=0
+                size_known=false
+            }
 
             process_state=0
             _coresimulator_activity_state || process_state=$?
@@ -1901,7 +1904,7 @@ clean_xcode_system_coresimulator_caches() {
                 break
             fi
             if declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
-                record_dry_run_cleanup_target "$entry" "$entry_size_kb" 1 true || continue
+                record_dry_run_cleanup_target "$entry" "$entry_size_kb" 1 "$size_known" || continue
             fi
             total_size_kb=$((total_size_kb + entry_size_kb))
             cleanable_count=$((cleanable_count + 1))
@@ -1951,9 +1954,8 @@ clean_xcode_system_coresimulator_caches() {
         local entry_size_kb=""
         local size_rc=0
         entry_size_kb=$(get_path_size_kb "$entry" 2> /dev/null) || size_rc=$?
-        [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-        [[ $size_rc -eq 0 ]] || return "$size_rc"
-        [[ "$entry_size_kb" =~ ^[0-9]+$ ]] || entry_size_kb=0
+        mole_item_size_continues "$size_rc" || return $?
+        [[ $size_rc -eq 0 && "$entry_size_kb" =~ ^[0-9]+$ ]] || entry_size_kb=0
 
         # A bounded size probe can still overlap Simulator startup. Recheck
         # immediately before the privileged deletion sink.
@@ -2168,9 +2170,12 @@ clean_xcode_device_support() {
                     fi
                     local size_rc=0
                     entry_size_kb=$(get_path_size_kb "$stale_entry" 2> /dev/null) || size_rc=$?
-                    [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-                    [[ $size_rc -eq 0 ]] || return "$size_rc"
-                    [[ "$entry_size_kb" =~ ^[0-9]+$ ]] || entry_size_kb=0
+                    mole_item_size_continues "$size_rc" || return $?
+                    local size_known=true
+                    [[ $size_rc -eq 0 && "$entry_size_kb" =~ ^[0-9]+$ ]] || {
+                        entry_size_kb=0
+                        size_known=false
+                    }
 
                     process_state=0
                     _xcode_xctest_devices_process_running || process_state=$?
@@ -2180,7 +2185,7 @@ clean_xcode_device_support() {
                         break
                     fi
                     if declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
-                        record_dry_run_cleanup_target "$stale_entry" "$entry_size_kb" 1 true || continue
+                        record_dry_run_cleanup_target "$stale_entry" "$entry_size_kb" 1 "$size_known" || continue
                     fi
                     preview_stale_dirs+=("$stale_entry")
                     stale_size_kb=$((stale_size_kb + entry_size_kb))
@@ -2218,9 +2223,8 @@ clean_xcode_device_support() {
                     fi
                     local size_rc=0
                     entry_size_kb=$(get_path_size_kb "$stale_entry" 2> /dev/null) || size_rc=$?
-                    [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-                    [[ $size_rc -eq 0 ]] || return "$size_rc"
-                    [[ "$entry_size_kb" =~ ^[0-9]+$ ]] || entry_size_kb=0
+                    mole_item_size_continues "$size_rc" || return $?
+                    [[ $size_rc -eq 0 && "$entry_size_kb" =~ ^[0-9]+$ ]] || entry_size_kb=0
 
                     # The size probe may consume the full disk-verification
                     # budget. Bind authorization to the deletion boundary by
@@ -2715,9 +2719,8 @@ clean_dev_mobile() {
                             local simulator_size_kb=""
                             local size_rc=0
                             simulator_size_kb=$(get_path_size_kb "$simulator_device_path") || size_rc=$?
-                            [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-                            [[ $size_rc -eq 0 ]] || return "$size_rc"
-                            [[ "$simulator_size_kb" =~ ^[0-9]+$ ]] || simulator_size_kb=0
+                            mole_item_size_continues "$size_rc" || return $?
+                            [[ $size_rc -eq 0 && "$simulator_size_kb" =~ ^[0-9]+$ ]] || simulator_size_kb=0
                             unavailable_size_kb=$((unavailable_size_kb + simulator_size_kb))
                         fi
                     done
@@ -2732,11 +2735,14 @@ clean_dev_mobile() {
                             local unavailable_path_size_kb
                             size_rc=0
                             unavailable_path_size_kb=$(get_path_size_kb "$unavailable_path" 2> /dev/null) || size_rc=$?
-                            [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-                            [[ $size_rc -eq 0 ]] || return "$size_rc"
-                            [[ "$unavailable_path_size_kb" =~ ^[0-9]+$ ]] || unavailable_path_size_kb=0
+                            mole_item_size_continues "$size_rc" || return $?
+                            local unavailable_size_known=true
+                            [[ $size_rc -eq 0 && "$unavailable_path_size_kb" =~ ^[0-9]+$ ]] || {
+                                unavailable_path_size_kb=0
+                                unavailable_size_known=false
+                            }
                             if declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
-                                record_dry_run_cleanup_target "$unavailable_path" "$unavailable_path_size_kb" 1 true || true
+                                record_dry_run_cleanup_target "$unavailable_path" "$unavailable_path_size_kb" 1 "$unavailable_size_known" || true
                             fi
                         done
                         echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Xcode unavailable simulators · would clean ${unavailable_before}, ${unavailable_size_human}"

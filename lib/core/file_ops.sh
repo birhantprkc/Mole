@@ -3715,6 +3715,19 @@ get_path_size_kb() {
         [[ "${MO_DEBUG:-}" == "1" ]] && debug_log "get_path_size_kb: Failed to get size for $path (returned: $size)"
         echo "0"
     fi
+# Classify a per-item get_path_size_kb status for a caller whose size only
+# feeds totals (bugs reference, section 15). A timeout or failure leaves the
+# item eligible with an unknown size and marks the freed total partial; a
+# signal records the cancellation and returns its status so the caller stops.
+mole_item_size_continues() {
+    local rc="${1:-0}"
+    [[ $rc -eq 0 ]] && return 0
+    if [[ $rc -ge 128 ]]; then
+        _mole_record_clean_cancellation "$rc"
+        return "$rc"
+    fi
+    MOLE_CLEAN_SIZING_TIMEOUTS=$((${MOLE_CLEAN_SIZING_TIMEOUTS:-0} + 1))
+    return 0
 }
 
 # Calculate total size for multiple paths
