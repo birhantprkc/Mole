@@ -1,25 +1,13 @@
 #!/usr/bin/env bats
 
+load helpers/common
+
 setup_file() {
-    PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
-    export PROJECT_ROOT
-
-    ORIGINAL_HOME="${HOME:-}"
-    export ORIGINAL_HOME
-
-    HOME="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-dev-caches.XXXXXX")"
-    export HOME
-
-    mkdir -p "$HOME"
+    mole_test_setup_home dev-caches
 }
 
 teardown_file() {
-    if [[ "$HOME" == "${BATS_TEST_DIRNAME}/tmp-"* ]]; then
-        rm -rf "$HOME"
-    fi
-    if [[ -n "${ORIGINAL_HOME:-}" ]]; then
-        export HOME="$ORIGINAL_HOME"
-    fi
+    mole_test_teardown_home
 }
 
 make_gh_cache_stub() {
@@ -1197,6 +1185,8 @@ EOF
 }
 
 @test "ChatGPT running keeps Codex runtime and update staging cleanup dormant (#1305)" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local case_home="$HOME/chatgpt-running-case"
     local runtime_root="$case_home/.cache/codex-runtimes"
     local staging_root="$case_home/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
@@ -1542,6 +1532,8 @@ EOF
 }
 
 @test "empty Codex cache leaves and fresh staging do not register active cleanup" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local case_home="$HOME/codex-empty-active"
     local cache_root="$case_home/Library/Caches/Codex/Default/Cache"
     local staging_root="$case_home/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
@@ -1569,6 +1561,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging selects only stale first-level installation directories" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local staging_root="$HOME/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
     rm -rf "$staging_root"
     mkdir -p "$staging_root/stale/Codex.app" "$staging_root/fresh/Codex.app"
@@ -1627,6 +1621,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging rechecks physical containment after sizing" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local case_home="$HOME/codex-staging-containment-race"
     local sparkle_parent="$case_home/Library/Caches/com.openai.codex"
     local sparkle_root="$sparkle_parent/org.sparkle-project.Sparkle"
@@ -1662,6 +1658,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging does not defer compiled-model-only candidates" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local case_home="$HOME/codex-staging-compiled-only"
     local stale="$case_home/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation/stale"
     mkdir -p "$stale/com.apple.e5rt.e5bundlecache"
@@ -1686,6 +1684,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging skips while Codex or Sparkle updater is running" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local staging_root="$HOME/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
     rm -rf "$staging_root"
     mkdir -p "$staging_root/stale"
@@ -1723,6 +1723,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging skips open files and honors whitelist" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local staging_root="$HOME/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
     rm -rf "$staging_root"
     mkdir -p "$staging_root/stale"
@@ -1784,6 +1786,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging fails closed when lsof is unavailable" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local staging_root="$HOME/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
     rm -rf "$staging_root"
     mkdir -p "$staging_root/stale"
@@ -1893,6 +1897,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging rechecks Codex at the deletion boundary" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local staging_root="$HOME/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
     rm -rf "$staging_root" "$HOME/codex-staging-probes"
     mkdir -p "$staging_root/stale"
@@ -1925,6 +1931,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging revalidates candidate age before deletion" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local staging_root="$HOME/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
     rm -rf "$staging_root" "$HOME/codex-staging-age-probes"
     mkdir -p "$staging_root/stale"
@@ -1958,6 +1966,8 @@ EOF
 }
 
 @test "clean_codex_desktop_staging routes dry-run candidates through safe_clean" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     local staging_root="$HOME/Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
     rm -rf "$staging_root"
     mkdir -p "$staging_root/stale"
@@ -3018,6 +3028,8 @@ EOF
 }
 
 @test "clean_dev_misc includes Chrome DevTools MCP cache when server not running" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     mkdir -p "$HOME/.cache/chrome-devtools-mcp/chrome-profile/Default/Cache"
     touch "$HOME/.cache/chrome-devtools-mcp/chrome-profile/Default/Cache/data"
 
@@ -3041,6 +3053,8 @@ EOF
 }
 
 @test "clean_dev_misc skips Chrome DevTools MCP cache when server is running" {
+    # Spotlight lists no other Codex copy, as on a machine without Codex.
+    mole_test_fake_command mdfind
     mkdir -p "$HOME/.cache/chrome-devtools-mcp/chrome-profile/Default/Cache"
     touch "$HOME/.cache/chrome-devtools-mcp/chrome-profile/Default/Cache/data"
 

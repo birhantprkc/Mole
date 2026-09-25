@@ -1,18 +1,13 @@
 #!/usr/bin/env bats
 
+load helpers/common
+
 # Regression for #1342: when a cleanup scan/size check hits its internal
 # timeout (exit 124), `mo clean` must still print the final summary with an
 # explicit reason instead of exiting silently mid-run.
 
 setup_file() {
-    PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
-    export PROJECT_ROOT
-
-    ORIGINAL_HOME="${HOME:-}"
-    export ORIGINAL_HOME
-
-    HOME="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-clean-summary-cancel.XXXXXX")"
-    export HOME
+    mole_test_setup_home clean-summary-cancel
 
     mkdir -p "$HOME/Library/Caches"
     mkdir -p "$HOME/.config/mole"
@@ -22,12 +17,7 @@ setup_file() {
 }
 
 teardown_file() {
-    if [[ "$HOME" == "${BATS_TEST_DIRNAME}/tmp-clean-summary-cancel."* ]]; then
-        rm -rf "$HOME"
-    fi
-    if [[ -n "${ORIGINAL_HOME:-}" ]]; then
-        export HOME="$ORIGINAL_HOME"
-    fi
+    mole_test_teardown_home
 }
 
 setup() {

@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+load helpers/common
+
 # Tests for get_path_size_kb in lib/core/file_ops.sh.
 # Exercises the allocated-block stat fast-path for regular files / symlinks
 # and the du fallback for directories, plus error and edge cases. Values are
@@ -7,8 +9,7 @@
 # basis.
 
 setup_file() {
-    PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
-    export PROJECT_ROOT
+    mole_test_setup_project_root
 }
 
 setup() {

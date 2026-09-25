@@ -1,15 +1,11 @@
 #!/usr/bin/env bats
+
+load helpers/common
+
 # Test naming variant detection for find_app_files (Issue #377)
 
 setup_file() {
-    PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
-    export PROJECT_ROOT
-
-    ORIGINAL_HOME="${HOME:-}"
-    export ORIGINAL_HOME
-
-    HOME="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-naming.XXXXXX")"
-    export HOME
+    mole_test_setup_home naming
 
     source "$PROJECT_ROOT/lib/core/base.sh"
     source "$PROJECT_ROOT/lib/core/log.sh"
@@ -17,10 +13,7 @@ setup_file() {
 }
 
 teardown_file() {
-    if [[ "$HOME" == "${BATS_TEST_DIRNAME}/tmp-"* ]]; then
-        rm -rf "$HOME"
-    fi
-    export HOME="$ORIGINAL_HOME"
+    mole_test_teardown_home
 }
 
 setup() {

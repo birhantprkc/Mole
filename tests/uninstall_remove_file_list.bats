@@ -1,12 +1,13 @@
 #!/usr/bin/env bats
 
+load helpers/common
+
 # Tests for remove_file_list batching in lib/uninstall/batch.sh.
 # Exercises the batched Trash path (single _mole_move_to_trash_batch call for
 # eligible files) and the fallback when the batch helper fails.
 
 setup_file() {
-    PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
-    export PROJECT_ROOT
+    mole_test_setup_project_root
 }
 
 setup() {
