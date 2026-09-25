@@ -491,7 +491,8 @@ _mole_user_cache_owner_process_state() {
 
 # CFBundleIdentifier of an app bundle into _MOLE_APP_BUNDLE_ID, memoized for
 # the process (bundles do not change identity while a clean runs). Status 1
-# when the plist cannot be read; the miss is memoized too.
+# when the plist cannot be read, including a read that times out on a
+# dataless bundle; the miss is memoized too, and callers treat it as busy.
 _MOLE_APP_BUNDLE_ID_CACHE=""
 _MOLE_APP_BUNDLE_ID=""
 _mole_app_bundle_identifier() {
@@ -507,7 +508,8 @@ _mole_app_bundle_identifier() {
             ;;
     esac
     local id=""
-    id=$(plutil -extract CFBundleIdentifier raw -o - "$bundle/Contents/Info.plist" 2> /dev/null) || id=""
+    id=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" \
+        plutil -extract CFBundleIdentifier raw -o - "$bundle/Contents/Info.plist" 2> /dev/null) || id=""
     mole_is_reverse_dns_bundle_id "$id" || id=""
     _MOLE_APP_BUNDLE_ID_CACHE="${_MOLE_APP_BUNDLE_ID_CACHE-}${cache_token}${id}|"
     _MOLE_APP_BUNDLE_ID="$id"

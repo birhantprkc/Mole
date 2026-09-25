@@ -595,6 +595,34 @@ EOF
     [[ "$output" == *"STATE=2"* ]] || return 1
 }
 
+@test "a stuck bundle identifier read times out and counts as unreadable" {
+    # The owner-process probe also runs at the final deletion step, so an
+    # unbounded plutil on a dataless ~/Applications bundle would hang the
+    # clean. A timed-out read must land on the same "unreadable" answer that
+    # callers already treat as busy.
+    local bundle="$HOME/Applications/Stuck.app"
+    local stub_dir="$HOME/stuck-plutil-bin"
+    mkdir -p "$bundle/Contents" "$stub_dir"
+    printf '#!/bin/bash\nsleep 30\n' > "$stub_dir/plutil"
+    chmod +x "$stub_dir/plutil"
+
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" bundle="$bundle" \
+        PATH="$stub_dir:$PATH" MOLE_TIMEOUT_QUICK_DETECT_SEC=1 \
+        /bin/bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+started=$SECONDS
+rc=0
+_mole_app_bundle_identifier "$bundle" || rc=$?
+printf 'RC=%s ID=[%s] ELAPSED=%s\n' "$rc" "$_MOLE_APP_BUNDLE_ID" "$((SECONDS - started))"
+EOF
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == *"RC=1 ID=[]"* ]] || { echo "$output"; return 1; }
+    local elapsed="${output##*ELAPSED=}"
+    [[ "$elapsed" -lt 10 ]] || { echo "$output"; return 1; }
+}
+
 @test "the debug flag never changes an open-handle verdict (#1439)" {
     # The probe folds lsof stderr into the buffer whose emptiness is what makes
     # rc=1 mean "conclusively idle". run_with_timeout traces to that same stream

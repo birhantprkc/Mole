@@ -325,7 +325,7 @@ clean_xcode_derived_data
 EOF
 
     [ "$status" -eq 0 ]
-    [[ "$output" != *"projects"* ]]
+    [[ "$output" != *"projects"* ]] || return 1
     [[ "$output" != *"UNEXPECTED_DEFER"* ]]
 }
 

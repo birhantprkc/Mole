@@ -404,7 +404,7 @@ EOF
 	if [[ -f "$PROJECT_ROOT/bin/analyze-go" ]]; then
 		[ -x "$PROJECT_ROOT/bin/analyze-go" ]
 		run file "$PROJECT_ROOT/bin/analyze-go"
-		[[ "$output" == *"Mach-O"* ]] || [[ "$output" == *"executable"* ]]
+		[[ "$output" == *"Mach-O"* ]] || [[ "$output" == *"executable"* ]] || return 1
 	else
 		skip "analyze-go binary not built"
 	fi

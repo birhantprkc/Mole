@@ -1089,7 +1089,9 @@ EOF
     [[ "$output" != *"swap.img"* ]]
 }
 
-@test "clean_dev_docker stops before BuildX cleanup when OrbStack sizing times out" {
+@test "clean_dev_docker keeps the OrbStack row and BuildX cleanup when sizing times out" {
+    # The OrbStack row is advisory and never deletes, so a size timeout drops
+    # only the size and later cleanup continues. A signal still stops the run.
     local orb_data="$HOME/Library/Group Containers/HUAQ24HBR6.dev.orbstack/data"
     mkdir -p "$orb_data"
     touch "$orb_data/data.img.raw"
@@ -1100,21 +1102,24 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
-safe_clean() { echo "UNEXPECTED_BUILDX:$2|$1"; }
-get_path_size_kb() { return 124; }
+safe_clean() { echo "BUILDX:$2|$1"; }
 note_activity() { :; }
 debug_log() { :; }
-set +e
-clean_dev_docker
-rc=$?
-set -e
-printf 'RC=%s CANCEL=%s\n' "$rc" "$MOLE_CLEAN_CANCEL_STATUS"
-[[ $rc -eq 124 && $MOLE_CLEAN_CANCEL_STATUS -eq 124 ]]
+get_path_size_kb() { return 124; }
+rc=0
+clean_dev_docker || rc=$?
+printf 'TIMEOUT RC=%s CANCEL=%s\n' "$rc" "$MOLE_CLEAN_CANCEL_STATUS"
+get_path_size_kb() { return 130; }
+rc=0
+clean_dev_docker || rc=$?
+printf 'SIGNAL RC=%s CANCEL=%s\n' "$rc" "$MOLE_CLEAN_CANCEL_STATUS"
 EOF
 
-    [ "$status" -eq 0 ] || return 1
-    [[ "$output" == *"RC=124 CANCEL=124"* ]] || return 1
-    [[ "$output" != *"UNEXPECTED_BUILDX"* ]]
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == *"OrbStack container data · review with docker system df"* ]] || { echo "$output"; return 1; }
+    [[ "$output" == *"BUILDX:Docker BuildX cache"*"TIMEOUT RC=0 CANCEL=0"* ]] || { echo "$output"; return 1; }
+    [[ "$output" == *"SIGNAL RC=130 CANCEL=130"* ]] || { echo "$output"; return 1; }
+    [[ "$(printf '%s\n' "$output" | grep -c 'BUILDX:')" -eq 1 ]]
 }
 
 @test "clean_dev_docker no longer depends on whitelist to avoid prune" {
@@ -1244,6 +1249,39 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"Codex runtimes · manual review (1M)"* ]] || return 1
     [[ "$output" != *"SAFE_CLEAN:Codex CLI runtimes|$HOME/.cache/codex-runtimes/codex-primary-runtime"* ]]
+}
+
+@test "clean_codex_runtimes keeps the review row and the run when sizing times out" {
+    # The review row is advisory and never deletes, so a slow size probe drops
+    # only the size. A signal still stops the run.
+    local iso="$HOME/iso-runtime-size-timeout"
+    mkdir -p "$iso/.cache/codex-runtimes/codex-primary-runtime/dependencies/node"
+    touch "$iso/.cache/codex-runtimes/codex-primary-runtime/runtime.json"
+
+    run env HOME="$iso" PROJECT_ROOT="$PROJECT_ROOT" DRY_RUN=false /bin/bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/dev.sh"
+safe_clean() { echo "SAFE_CLEAN:$2|$1"; }
+pgrep() { return 1; }
+is_path_whitelisted() { return 1; }
+note_activity() { :; }
+_mole_record_clean_cancellation() { echo "CANCELLED:$1"; }
+get_path_size_kb() { return 124; }
+rc=0
+clean_codex_runtimes || rc=$?
+echo "TIMEOUT_RC=$rc"
+get_path_size_kb() { return 130; }
+rc=0
+clean_codex_runtimes || rc=$?
+echo "SIGNAL_RC=$rc"
+EOF
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == *"Codex runtimes · manual review"$'\n'"TIMEOUT_RC=0"* ]] || { echo "$output"; return 1; }
+    [[ "$output" != *"CANCELLED:124"* ]] || { echo "$output"; return 1; }
+    [[ "$output" == *"CANCELLED:130"* ]] || { echo "$output"; return 1; }
+    [[ "$output" == *"SIGNAL_RC=130"* ]]
 }
 
 @test "clean_codex_runtimes sizes manual review by what survives the run" {
@@ -1774,6 +1812,39 @@ EOF
     }
     [[ "$output" == *"open-file check unavailable"* ]] || return 1
     [[ "$output" != *"UNEXPECTED_SAFE_CLEAN"* ]]
+}
+
+@test "the debug flag never changes the codex staging open-file verdict" {
+    # The stderr file is evidence: lsof exit 1 counts as "idle" only when it
+    # is empty. run_with_timeout traces into that stream under MO_DEBUG=1, so
+    # without MO_DEBUG=0 on the capture every idle staging root read as
+    # "could not tell" under --debug. The stub reproduces the trace on purpose.
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc << 'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/dev.sh"
+_MOLE_COMPLETE_LSOF_MODE=direct
+mkdir -p "$HOME/codex-staging-idle"
+lsof() { return 1; }
+run_with_timeout() {
+    local duration="$1"
+    shift
+    if [[ "${MO_DEBUG:-0}" == "1" ]]; then
+        echo "[TIMEOUT] Running with ${duration}s timeout: $*" >&2
+    fi
+    "$@"
+}
+export MO_DEBUG=0
+quiet=0
+codex_sparkle_staging_has_open_files "$HOME/codex-staging-idle" || quiet=$?
+export MO_DEBUG=1
+loud=0
+codex_sparkle_staging_has_open_files "$HOME/codex-staging-idle" || loud=$?
+printf 'QUIET=%s LOUD=%s\n' "$quiet" "$loud"
+EOF
+
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    [[ "$output" == *"QUIET=1 LOUD=1"* ]] || { echo "$output"; return 1; }
 }
 
 @test "codex staging treats lsof exit one with stderr as unknown" {

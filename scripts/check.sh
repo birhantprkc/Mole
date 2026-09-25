@@ -231,6 +231,14 @@ fi
 printf '%s\n' "$destructive_output"
 echo -e "${GREEN}${ICON_SUCCESS} Destructive sink annotation check passed${NC}\n"
 
+if ! bats_assertion_output=$(python3 "$SCRIPT_DIR/audit_bats_assertions.py" 2>&1); then
+    printf '%s\n' "$bats_assertion_output"
+    echo -e "${RED}${ICON_ERROR} Bats assertions that cannot fail found${NC}\n"
+    exit 1
+fi
+printf '%s\n' "$bats_assertion_output"
+echo -e "${GREEN}${ICON_SUCCESS} Bats assertion check passed${NC}\n"
+
 diagnostic_public_files=(README.md CONTRIBUTING.md docs/*.md .github/ISSUE_TEMPLATE/*)
 if ! diagnostic_placement_output=$(check_diagnostic_placement "${diagnostic_public_files[@]}"); then
     [[ -n "$diagnostic_placement_output" ]] && printf '%s\n' "$diagnostic_placement_output"

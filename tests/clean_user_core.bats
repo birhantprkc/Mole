@@ -650,7 +650,7 @@ EOF
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Trash · removed 1 items, 1 could not be removed"* ]] || return 1
-    [[ -e "$HOME/.Trash/two.tmp" ]]
+    [[ -e "$HOME/.Trash/two.tmp" ]] || return 1
     [[ ! -e "$HOME/.Trash/one.tmp" ]]
 }
 
@@ -678,8 +678,8 @@ EOF
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Trash · emptied, 3 items"* ]] || return 1
-    [[ ! -e "$HOME/.Trash/com.sogou.inputmethod.sogou.plist" ]]
-    [[ ! -e "$HOME/.Trash/com.tencent.inputmethod.QQInput.plist" ]]
+    [[ ! -e "$HOME/.Trash/com.sogou.inputmethod.sogou.plist" ]] || return 1
+    [[ ! -e "$HOME/.Trash/com.tencent.inputmethod.QQInput.plist" ]] || return 1
     [[ ! -d "$HOME/.Trash/Input Methods" ]]
 }
 

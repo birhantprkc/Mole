@@ -56,7 +56,7 @@ setup() {
 @test "installer.sh accepts --dry-run option" {
 	run env HOME="$HOME" TERM="xterm-256color" "$PROJECT_ROOT/bin/installer.sh" --dry-run
 
-	[[ "$status" -eq 0 || "$status" -eq 2 ]]
+	[[ "$status" -eq 0 || "$status" -eq 2 ]] || return 1
 	[[ "$output" == *"DRY RUN MODE"* ]]
 }
 

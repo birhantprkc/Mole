@@ -231,7 +231,7 @@ find_app_files 'invalid_bundle' ''"
 
     result=$(find_app_files "com.microsoft.VSCode" "Visual Studio Code")
 
-    [[ "$result" =~ Library/Application\ Support/Code$'\n' ]] || [[ "$result" == *"Library/Application Support/Code"* ]]
+    [[ "$result" =~ Library/Application\ Support/Code$'\n' ]] || [[ "$result" == *"Library/Application Support/Code"* ]] || return 1
     [[ "$result" == *"/.vscode"* ]] || return 1
     [[ "$result" != *"Code - Insiders"* ]]
 }

@@ -1285,16 +1285,21 @@ clean_dev_docker() {
     local orb_data=""
     orb_data=$(find_orbstack_data_dir 2> /dev/null || true)
     if command -v orb > /dev/null 2>&1 || command -v orbctl > /dev/null 2>&1 || [[ -d "$HOME/.orbstack" || -n "$orb_data" ]]; then
-        local orb_size=0
+        local orb_size=0 orb_size_label=""
         if [[ -n "$orb_data" ]]; then
             local size_rc=0
             orb_size=$(get_path_size_kb "$orb_data" 2> /dev/null) || size_rc=$?
-            [[ $size_rc -eq 0 ]] || _mole_record_clean_cancellation "$size_rc"
-            [[ $size_rc -eq 0 ]] || return "$size_rc"
-            [[ "$orb_size" =~ ^[0-9]+$ ]] || orb_size=0
+            # The row is advisory and never deletes: a timed-out or failed size
+            # drops only the size, while a signal still stops the run.
+            if [[ $size_rc -ge 128 ]]; then
+                _mole_record_clean_cancellation "$size_rc"
+                return "$size_rc"
+            fi
+            [[ $size_rc -eq 0 && "$orb_size" =~ ^[0-9]+$ ]] || orb_size=""
         fi
+        [[ -n "$orb_size" ]] && orb_size_label="$(bytes_to_human $((orb_size * 1024))) · "
         note_activity
-        echo -e "  ${GRAY}${ICON_REVIEW}${NC} OrbStack container data · $(bytes_to_human $((orb_size * 1024))) · review with docker system df"
+        echo -e "  ${GRAY}${ICON_REVIEW}${NC} OrbStack container data · ${orb_size_label}review with docker system df"
         debug_log "OrbStack daemon-managed data left for manual prune ($orb_size KB)"
     fi
     safe_clean ~/.docker/buildx/cache/* "Docker BuildX cache"
@@ -4114,7 +4119,10 @@ codex_sparkle_staging_has_open_files() {
     lsof_error_file=$(create_temp_file 2> /dev/null || true)
     [[ -n "$lsof_error_file" && -f "$lsof_error_file" && ! -L "$lsof_error_file" ]] || return 2
 
-    if lsof_output=$(_mole_run_complete_lsof "$MOLE_TIMEOUT_QUICK_DETECT_SEC" \
+    # MO_DEBUG=0 because the stderr file is evidence below: under --debug,
+    # run_with_timeout writes its own trace line there and every idle staging
+    # root would read as "could not tell".
+    if lsof_output=$(MO_DEBUG=0 _mole_run_complete_lsof "$MOLE_TIMEOUT_QUICK_DETECT_SEC" \
         -Fn +D "$staging_root" 2> "$lsof_error_file"); then
         [[ -n "$lsof_output" ]]
         return
@@ -4799,12 +4807,15 @@ clean_codex_runtimes() {
     if [[ "${DRY_RUN:-false}" != "true" && "${MOLE_DRY_RUN:-0}" != "1" ]]; then
         local review_kb=0 size_rc=0
         review_kb=$(get_path_size_kb "$runtime_root" 2> /dev/null) || size_rc=$?
-        if [[ $size_rc -ne 0 ]]; then
+        # The row is advisory and never deletes: a timed-out or failed size
+        # drops only the size, while a signal still stops the run.
+        if [[ $size_rc -ge 128 ]]; then
             _mole_record_clean_cancellation "$size_rc"
             return "$size_rc"
         fi
-        [[ "$review_kb" =~ ^[0-9]+$ ]] || review_kb=0
-        review_size=" ($(bytes_to_human "$((review_kb * 1024))"))"
+        if [[ $size_rc -eq 0 && "$review_kb" =~ ^[0-9]+$ ]]; then
+            review_size=" ($(bytes_to_human "$((review_kb * 1024))"))"
+        fi
     fi
     # A preview cannot establish which removals will succeed, so omit its size.
     echo -e "  ${GRAY}${ICON_REVIEW}${NC} Codex runtimes · manual review${review_size}"

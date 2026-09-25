@@ -1022,7 +1022,18 @@ EOF
 }
 
 @test "opt_launch_agents_cleanup reports broken agents and leaves them in place" {
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_DRY_RUN=1 /bin/bash --noprofile --norc <<'EOF'
+	# launchctl is a PATH stub rather than a shell function: run_with_timeout
+	# execs an external timeout binary that never sees shell functions, so a
+	# function mock could not observe a reintroduced unload. Real mode, not
+	# dry-run, because the removed unload path returned early under dry-run.
+	local stub_dir="$HOME/launchctl-stub-bin"
+	local trace="$HOME/launchctl.trace"
+	mkdir -p "$stub_dir"
+	rm -f "$trace"
+	printf '#!/bin/bash\necho "$*" >> "%s"\n' "$trace" > "$stub_dir/launchctl"
+	chmod +x "$stub_dir/launchctl"
+
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="$stub_dir:$PATH" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/optimize/tasks.sh"
@@ -1044,16 +1055,15 @@ cat > "$HOME/Library/LaunchAgents/com.test.broken.plist" <<'PLIST'
 PLIST
 # The audit must never unload or remove the agent (#1617).
 safe_remove() { echo "SAFE_REMOVE $1"; return 0; }
-launchctl() { echo "LAUNCHCTL $*"; return 0; }
 execute_optimization launch_agents_cleanup
 [[ -f "$HOME/Library/LaunchAgents/com.test.broken.plist" ]] || { echo "PLIST_GONE"; exit 1; }
 EOF
 
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"Launch Agent com.test.broken: program missing at /nonexistent/binary"* ]]
-	[[ "$output" == *"left in ~/Library/LaunchAgents"* ]]
-	[[ "$output" != *"SAFE_REMOVE"* ]]
-	[[ "$output" != *"LAUNCHCTL"* ]]
+	[ "$status" -eq 0 ] || { echo "$output"; return 1; }
+	[[ "$output" == *"Launch Agent com.test.broken: program missing at /nonexistent/binary"* ]] || return 1
+	[[ "$output" == *"left in ~/Library/LaunchAgents"* ]] || return 1
+	[[ "$output" != *"SAFE_REMOVE"* ]] || return 1
+	[[ ! -s "$trace" ]] || { cat "$trace"; return 1; }
 	[[ "$output" != *"Cleaned"* ]]
 }
 

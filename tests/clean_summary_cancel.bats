@@ -101,8 +101,8 @@ EOF
     run_perform_cleanup_with 124
 
     [ "$status" -eq 124 ]
-    [[ "$output" == *"Cleanup cancelled"* ]]
-    [[ "$output" == *"timed out (exit 124)"* ]]
+    [[ "$output" == *"Cleanup cancelled"* ]] || return 1
+    [[ "$output" == *"timed out (exit 124)"* ]] || return 1
     [[ "$output" == *"Remaining cleanup was skipped"* ]]
 }
 
@@ -110,7 +110,7 @@ EOF
     run_perform_cleanup_with 130
 
     [ "$status" -eq 130 ]
-    [[ "$output" == *"Cleanup interrupted"* ]]
+    [[ "$output" == *"Cleanup interrupted"* ]] || return 1
     [[ "$output" == *"was interrupted (exit 130)"* ]]
 }
 
@@ -286,7 +286,7 @@ EOF
     run_perform_cleanup_with 0
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Cleanup complete"* ]]
+    [[ "$output" == *"Cleanup complete"* ]] || return 1
     [[ "$output" != *"Cleanup cancelled"* ]]
 }
 

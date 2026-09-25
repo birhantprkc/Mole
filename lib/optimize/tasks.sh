@@ -1220,7 +1220,10 @@ opt_launch_agents_cleanup() {
                 "$plist" 2> /dev/null) || plist_rc=$?
             [[ $plist_rc -eq 124 || $plist_rc -ge 128 ]] && return "$plist_rc"
             [[ -n "$label" ]] || label="$(basename "$plist" .plist)"
-            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Launch Agent $label: program missing at ${binary/#$HOME/~}"
+            # Label and Program come from a third-party plist, so escape
+            # sequences in them must not reach the terminal.
+            printf '  %b %s\n' "${YELLOW}${ICON_WARNING}${NC}" \
+                "Launch Agent $(mole_terminal_safe_text "$label"): program missing at $(mole_terminal_safe_text "${binary/#$HOME/~}")"
             broken_count=$((broken_count + 1))
         fi
     done

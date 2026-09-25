@@ -336,14 +336,14 @@ emit_deduplicated_dry_run_ledger() {
                 next if $seen{$identity}++;
                 push @records, \@record;
                 my $path = $record[5];
-                $path =~ s{/+$}{} if length($path) > 1;
+                $path =~ s{/+\z}{} if length($path) > 1;
                 $measured{$path} = 1 if $record[3] eq "true";
             }
             for my $record (@records) {
                 my $ancestor = $record->[5];
-                $ancestor =~ s{/+$}{} if length($ancestor) > 1;
+                $ancestor =~ s{/+\z}{} if length($ancestor) > 1;
                 my $covered_by = "";
-                while ($ancestor =~ s{/[^/]*$}{} && length $ancestor) {
+                while ($ancestor =~ s{/[^/]*\z}{} && length $ancestor) {
                     if ($measured{$ancestor}) {
                         $covered_by = $ancestor;
                         last;

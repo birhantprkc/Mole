@@ -377,7 +377,7 @@ EOF
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Blender cache"* ]] || return 1
-    [[ "$output" == *"Cinema 4D cache"* ]]
+    [[ "$output" == *"Cinema 4D cache"* ]] || return 1
     [[ "$output" == *"Autodesk cache"* ]] || return 1
 }
 

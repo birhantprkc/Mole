@@ -187,7 +187,7 @@ printf '%s\n' "$(uninstall_normalize_size_display "420MB" "$HOME/Applications/Re
 EOF
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"N/A (Steam-managed)"* ]]
+    [[ "$output" == *"N/A (Steam-managed)"* ]] || return 1
     [[ "$output" != *"93KB"* ]]
 }
 

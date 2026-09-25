@@ -51,10 +51,10 @@ remove_file_list "$list" "false"
 EOF
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"0"* ]]
-    [[ -f "$HOME/.Local/bin/unrelated-cli" ]]
-    [[ -f "$HOME/.Config/unrelated-config" ]]
-    [[ -f "$HOME/.Cache/unrelated-cache" ]]
+    [[ "$output" == *"0"* ]] || return 1
+    [[ -f "$HOME/.Local/bin/unrelated-cli" ]] || return 1
+    [[ -f "$HOME/.Config/unrelated-config" ]] || return 1
+    [[ -f "$HOME/.Cache/unrelated-cache" ]] || return 1
     [[ ! -d "$MOLE_TEST_TRASH_DIR" ]]
 }
 
